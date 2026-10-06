@@ -42,6 +42,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 
 import java.util.List;
 
@@ -109,9 +110,23 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
      */
     private VisionPortal visionPortal;
 
+    // To find the VID/PID for a camera:
+    //
+    // Linux: open a terminal, run "lsusb", locate the line for your camera,
+    // and find the section that resembles "ID 1d6b:0002"; this is VID:PID
+    //
+    // OSX: open a terminal, run "system_profiler SPUSBDataType", locate the
+    // section for your camera, and find the "Product ID:" and "Vendor ID:"
+    // listings in the output
+    //
+    // Windows: open a PowerShell, run:
+    // Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB*' } | Select-Object FriendlyName, InstanceId
+    // and locate the line for your camera. The VID and PID is listed directly in the line.
+    static final int VENDOR_ID_SUNPLUS_INNOVATION_TECHNOLOGY = 0x1BCF;
+    static final int PRODUCT_ID_ARDUCAM_OV5648 = 0x284C;
+
     @Override
     public void runOpMode() {
-
         initAprilTag();
 
         // Wait for the DS start button to be touched.
@@ -126,6 +141,13 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
 
             // Push telemetry to the Driver Station.
             telemetry.update();
+
+            // Save CPU resources; can resume streaming when needed.
+            if (gamepad1.dpad_down) {
+                visionPortal.stopStreaming();
+            } else if (gamepad1.dpad_up) {
+                visionPortal.resumeStreaming();
+            }
 
             // Share the CPU.
             sleep(20);
@@ -145,7 +167,7 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
         aprilTag = new AprilTagProcessor.Builder()
 
                 // The following default settings are available to un-comment and edit as needed.
-                //.setDrawAxes(false)
+                //.setDrawAxes(true)  // changed in V12.0
                 //.setDrawCubeProjection(false)
                 //.setDrawTagOutline(true)
                 //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
@@ -184,7 +206,7 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
         //builder.setCameraResolution(new Size(640, 480));
 
         // Enable the RC preview (LiveView).  Set "false" to omit camera monitoring.
-        builder.enableLiveView(true);
+        //builder.enableLiveView(true);
 
         // Set the stream format; MJPEG uses less bandwidth than default YUY2.
         //builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
@@ -215,19 +237,23 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
 
         // Step through the list of detections and display info for each one.
         for (AprilTagDetection detection : currentDetections) {
-            if (detection.metadata != null) {
-                telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
-                telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)",
-                        detection.robotPose.getPosition().x,
-                        detection.robotPose.getPosition().y,
-                        detection.robotPose.getPosition().z));
-                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)",
-                        detection.robotPose.getOrientation().getPitch(AngleUnit.DEGREES),
-                        detection.robotPose.getOrientation().getRoll(AngleUnit.DEGREES),
-                        detection.robotPose.getOrientation().getYaw(AngleUnit.DEGREES)));
-            } else {
-                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
-                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
+            if (detection instanceof AprilTagSingleDetection) {
+                AprilTagSingleDetection singleDet = (AprilTagSingleDetection) detection;
+
+                if (singleDet.metadata != null) {
+                    telemetry.addLine(String.format("\n==== (ID %d) %s", singleDet.id, singleDet.metadata.name));
+                    telemetry.addLine(String.format("Robot XYZ %6.1f %6.1f %6.1f  (inch)",
+                            detection.robotPose.getPosition().x,
+                            detection.robotPose.getPosition().y,
+                            detection.robotPose.getPosition().z));
+                    telemetry.addLine(String.format("Robot PRY %6.1f %6.1f %6.1f  (deg)",
+                            detection.robotPose.getOrientation().getPitch(AngleUnit.DEGREES),
+                            detection.robotPose.getOrientation().getRoll(AngleUnit.DEGREES),
+                            detection.robotPose.getOrientation().getYaw(AngleUnit.DEGREES)));
+                } else {
+                    telemetry.addLine(String.format("\n==== (ID %d) Unknown", singleDet.id));
+                    telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", singleDet.center.x, singleDet.center.y));
+                }
             }
         }   // end for() loop
 
@@ -238,4 +264,3 @@ public class ConceptAprilTagLocalization extends LinearOpMode {
     }   // end method telemetryAprilTag()
 
 }   // end class
-

@@ -34,8 +34,10 @@
 package org.firstinspires.ftc.vision.apriltag;
 
 import android.graphics.Canvas;
+import android.util.Log;
 
 import com.qualcomm.robotcore.util.MovingStatistics;
+import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.external.matrices.GeneralMatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
@@ -47,8 +49,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
+import org.firstinspires.ftc.robotcore.external.navigation.Quaternion;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.robotcore.internal.camera.calibration.CameraCalibration;
+import org.firstinspires.ftc.robotcore.internal.camera.calibration.CameraCalibrationHelper;
+import org.firstinspires.ftc.robotcore.internal.camera.calibration.PlaceholderCalibratedAspectRatioMismatch;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -60,16 +65,12 @@ import org.opencv.core.Point3;
 import org.opencv.imgproc.Imgproc;
 import org.openftc.apriltag.AprilTagDetectorJNI;
 import org.openftc.apriltag.ApriltagDetectionJNI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 
 public class AprilTagProcessorImpl extends AprilTagProcessor
 {
     public static final String TAG = "AprilTagProcessorImpl";
-
-    Logger logger = LoggerFactory.getLogger(TAG);
 
     private long nativeApriltagPtr;
     private Mat grey = new Mat();
@@ -101,7 +102,7 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
     private final DistanceUnit outputUnitsLength;
     private final AngleUnit outputUnitsAngle;
 
-    private volatile PoseSolver poseSolver = PoseSolver.APRILTAG_BUILTIN;
+    private volatile PoseSolver poseSolver = PoseSolver.OPENCV_ITERATIVE;
 
     private OpenGLMatrix robotInCameraFrame;
 
@@ -140,7 +141,7 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
         }
         else
         {
-            logger.debug("AprilTagDetectionPipeline.finalize(): nativeApriltagPtr was NULL");
+            System.out.println("AprilTagDetectionPipeline.finalize(): nativeApriltagPtr was NULL");
         }
     }
 
@@ -150,7 +151,7 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
         // ATTEMPT 1 - If the user provided their own calibration, use that
         if (fx != 0 && fy != 0 && cx != 0 && cy != 0)
         {
-            logger.debug(String.format("User provided their own camera calibration fx=%7.3f fy=%7.3f cx=%7.3f cy=%7.3f",
+            Log.d(TAG, String.format("User provided their own camera calibration fx=%7.3f fy=%7.3f cx=%7.3f cy=%7.3f",
                     fx, fy, cx, cy));
         }
 
@@ -167,15 +168,17 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
             {
                 String msg = String.format("Camera has not been calibrated for [%dx%d]; applying a scaled calibration from [%dx%d].", width, height, calibration.resolutionScaledFrom.getWidth(), calibration.resolutionScaledFrom.getHeight());
 
+                Log.d(TAG, msg);
+
                 if (!suppressCalibrationWarnings)
                 {
-                    logger.warn(msg);
+                    // RobotLog.addGlobalWarningMessage(msg);
                 }
             }
             // Nope, it was a full up proper calibration - no need to pester the user about anything
             else
             {
-                logger.debug(String.format("User did not provide a camera calibration; but we DO have a built in calibration we can use.\n [%dx%d] (NOT scaled) %s\nfx=%7.3f fy=%7.3f cx=%7.3f cy=%7.3f",
+                Log.d(TAG, String.format("User did not provide a camera calibration; but we DO have a built in calibration we can use.\n [%dx%d] (NOT scaled) %s\nfx=%7.3f fy=%7.3f cx=%7.3f cy=%7.3f",
                         calibration.getSize().getWidth(), calibration.getSize().getHeight(), calibration.getIdentity().toString(), fx, fy, cx, cy));
             }
         }
@@ -183,9 +186,6 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
         // Okay, we aren't going to have any calibration data we can use, but there are 2 cases to check
         else
         {
-            // NO-OP, we cannot implement this for EOCV-Sim in the same way as the FTC SDK
-
-            /*
             // If we have a calibration on file, but with a wrong aspect ratio,
             // we can't use it, but hey at least we can let the user know about it.
             if (calibration instanceof PlaceholderCalibratedAspectRatioMismatch)
@@ -200,20 +200,23 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
                 String msg = String.format("Camera has not been calibrated for [%dx%d]. Pose estimates will likely be inaccurate. However, there are built in calibrations for resolutions: %s",
                         width, height, supportedResBuilder.toString());
 
+                Log.d(TAG, msg);
+
                 if (!suppressCalibrationWarnings)
                 {
-                    logger.warn(msg);
+                    // RobotLog.addGlobalWarningMessage(msg);
                 }
-
+            }
 
             // Nah, we got absolutely nothing
-            else*/
+            else
             {
                 String warning = "User did not provide a camera calibration, nor was a built-in calibration found for this camera. Pose estimates will likely be inaccurate.";
+                Log.d(TAG, warning);
 
                 if (!suppressCalibrationWarnings)
                 {
-                    logger.warn(warning);
+                    // RobotLog.addGlobalWarningMessage(warning);
                 }
             }
 
@@ -255,133 +258,247 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
         return detections;
     }
 
+    private Point[] nativeCornersToJavaCorners(double[][] corners)
+    {
+        Point[] cornerPts = new Point[4];
+        for (int p = 0; p < 4; p++)
+        {
+            cornerPts[p] = new Point(corners[p][0], corners[p][1]);
+        }
+
+        return cornerPts;
+    }
+
+    private AprilTagPoseRaw doClusterSolve(TagClusterNotebook n, PoseSolver solver)
+    {
+        final int CORNERS_PER_TAG = 4;
+
+        Point[] imagePts = new Point[n.detections.size() * CORNERS_PER_TAG];
+        Point3[] idealProjectionPts = new Point3[imagePts.length];
+
+        for (int tag = 0; tag < n.detections.size(); tag++)
+        {
+            PreliminaryTagDetection det = n.detections.get(tag);
+            AprilTagClusterMemberMetadata metadata = n.cluster.getMemberMetadata(det.id);
+
+            double tagsize = outputUnitsLength.fromUnit(n.cluster.distanceUnit, metadata.tagsize);
+            double offsetX = outputUnitsLength.fromUnit(n.cluster.distanceUnit, metadata.positionInClusterPlane.get(0));
+            double offsetY = outputUnitsLength.fromUnit(n.cluster.distanceUnit, metadata.positionInClusterPlane.get(1));
+            double offsetZ = outputUnitsLength.fromUnit(n.cluster.distanceUnit, metadata.positionInClusterPlane.get(2));
+
+            imagePts[tag * CORNERS_PER_TAG    ] = det.corners[0];
+            imagePts[tag * CORNERS_PER_TAG + 1] = det.corners[1];
+            imagePts[tag * CORNERS_PER_TAG + 2] = det.corners[2];
+            imagePts[tag * CORNERS_PER_TAG + 3] = det.corners[3];
+
+            idealProjectionPts[tag * CORNERS_PER_TAG    ] = new Point3(-tagsize/2 + offsetX,  tagsize/2 + offsetY, offsetZ);
+            idealProjectionPts[tag * CORNERS_PER_TAG + 1] = new Point3( tagsize/2 + offsetX,  tagsize/2 + offsetY, offsetZ);
+            idealProjectionPts[tag * CORNERS_PER_TAG + 2] = new Point3( tagsize/2 + offsetX, -tagsize/2 + offsetY, offsetZ);
+            idealProjectionPts[tag * CORNERS_PER_TAG + 3] = new Point3(-tagsize/2 + offsetX, -tagsize/2 + offsetY, offsetZ);
+        }
+
+        Pose opencvPose = poseFromNGrt4Pts(imagePts, idealProjectionPts, cameraMatrix, solver.code);
+
+        // Build rotation matrix
+        Mat R = new Mat(3, 3, CvType.CV_32F);
+        Calib3d.Rodrigues(opencvPose.rvec, R);
+        float[] tmp2 = new float[9];
+        R.get(0,0, tmp2);
+
+        return new AprilTagPoseRaw(
+                opencvPose.tvec.get(0,0)[0], // x
+                opencvPose.tvec.get(1,0)[0], // y
+                opencvPose.tvec.get(2,0)[0], // z
+                new GeneralMatrixF(3,3, tmp2)); // R
+    }
+
     private MovingStatistics solveTime = new MovingStatistics(50);
 
-    // We cannot use runAprilTagDetectorSimple because we cannot assume tags are all the same size
+    private AprilTagPoseRaw doSingleTagPoseSolve(AprilTagMetadata metadata, PoseSolver solver, Point[] cornerPts, long ptrDetection)
+    {
+        AprilTagPoseRaw rawPose;
+        long startSolveTime = System.currentTimeMillis();
+
+        if (solver == PoseSolver.APRILTAG_BUILTIN)
+        {
+            double[] pose = ApriltagDetectionJNI.getPoseEstimate(
+                    ptrDetection,
+                    outputUnitsLength.fromUnit(metadata.distanceUnit, metadata.tagsize),
+                    fx, fy, cx, cy);
+
+            // Build rotation matrix
+            float[] rotMtxVals = new float[3 * 3];
+            for (int i = 0; i < 9; i++)
+            {
+                rotMtxVals[i] = (float) pose[3 + i];
+            }
+
+            rawPose = new AprilTagPoseRaw(
+                    pose[0], pose[1], pose[2], // x y z
+                    new GeneralMatrixF(3, 3, rotMtxVals)); // R
+        }
+        else
+        {
+            Pose opencvPose = poseFromTrapezoid(
+                    cornerPts,
+                    cameraMatrix,
+                    outputUnitsLength.fromUnit(metadata.distanceUnit, metadata.tagsize),
+                    solver.code);
+
+            // Build rotation matrix
+            Mat R = new Mat(3, 3, CvType.CV_32F);
+            Calib3d.Rodrigues(opencvPose.rvec, R);
+            float[] tmp2 = new float[9];
+            R.get(0,0, tmp2);
+
+            rawPose = new AprilTagPoseRaw(
+                    opencvPose.tvec.get(0,0)[0], // x
+                    opencvPose.tvec.get(1,0)[0], // y
+                    opencvPose.tvec.get(2,0)[0], // z
+                    new GeneralMatrixF(3,3, tmp2)); // R
+        }
+
+        long endSolveTime = System.currentTimeMillis();
+        solveTime.add(endSolveTime-startSolveTime);
+
+        return rawPose;
+    }
+
+    private AprilTagPoseFtc rawPoseToFtcPose(AprilTagPoseRaw rawPose)
+    {
+        Orientation rot = Orientation.getOrientation(rawPose.R, AxesReference.INTRINSIC, AxesOrder.YXZ, outputUnitsAngle);
+
+        return new AprilTagPoseFtc(
+                rawPose.x,  // x   NB: These are *intentionally* not matched directly;
+                rawPose.z,  // y       this is the mapping between the AprilTag coordinate
+                -rawPose.y, // z       system and the FTC coordinate system
+                -rot.firstAngle, // yaw
+                rot.secondAngle, // pitch
+                rot.thirdAngle,  // roll
+                Math.hypot(rawPose.x, rawPose.z), // range
+                outputUnitsAngle.fromUnit(AngleUnit.RADIANS, Math.atan2(-rawPose.x, rawPose.z)), // bearing
+                outputUnitsAngle.fromUnit(AngleUnit.RADIANS, Math.atan2(-rawPose.y, rawPose.z))); // elevation
+    }
+
+    private PreliminaryTagDetection getPreliminaryDetectionFromNative(long ptr)
+    {
+        int tagId = ApriltagDetectionJNI.getId(ptr);
+        double[] tagCenter = ApriltagDetectionJNI.getCenterpoint(ptr);
+        Point[] cornerPts = nativeCornersToJavaCorners(ApriltagDetectionJNI.getCorners(ptr));
+
+        return new PreliminaryTagDetection(
+                tagId,
+                new Point(tagCenter[0], tagCenter[1]),
+                cornerPts,
+                ptr);
+    }
+
+    private PreliminaryFrameFindings segmentFrameFindings(long[] detectionPointers)
+    {
+        PreliminaryFrameFindings findings = new PreliminaryFrameFindings();
+
+        for (long ptrDetection : detectionPointers)
+        {
+            PreliminaryTagDetection prelimDet = getPreliminaryDetectionFromNative(ptrDetection);
+
+            // if we come back with a cluster match then this goes into a cluster notebook
+            AprilTagClusterMetadata cluster = tagLibrary.lookupCluster(prelimDet.id);
+            if (cluster != null)
+            {
+                findings.noteClusterTag(prelimDet, cluster);
+            }
+            // if no cluster match then this is just a single tag
+            else
+            {
+                findings.noteSingleTag(prelimDet);
+            }
+        }
+
+        return findings;
+    }
+
     ArrayList<AprilTagDetection> runAprilTagDetectorForMultipleTagSizes(long captureTimeNanos)
     {
         long ptrDetectionArray = AprilTagDetectorJNI.runApriltagDetector(nativeApriltagPtr, grey.dataAddr(), grey.width(), grey.height());
-        if (ptrDetectionArray != 0)
+
+        if (ptrDetectionArray == 0)
         {
-            long[] detectionPointers = ApriltagDetectionJNI.getDetectionPointers(ptrDetectionArray);
-            ArrayList<AprilTagDetection> detections = new ArrayList<>(detectionPointers.length);
-
-            for (long ptrDetection : detectionPointers)
-            {
-                AprilTagMetadata metadata = tagLibrary.lookupTag(ApriltagDetectionJNI.getId(ptrDetection));
-
-                double[][] corners = ApriltagDetectionJNI.getCorners(ptrDetection);
-
-                Point[] cornerPts = new Point[4];
-                for (int p = 0; p < 4; p++)
-                {
-                    cornerPts[p] = new Point(corners[p][0], corners[p][1]);
-                }
-
-                AprilTagPoseRaw rawPose;
-                AprilTagPoseFtc ftcPose;
-                Pose3D robotPose;
-
-                if (metadata != null)
-                {
-                    PoseSolver solver = poseSolver; // snapshot, can change
-
-                    long startSolveTime = System.currentTimeMillis();
-
-                    if (solver == PoseSolver.APRILTAG_BUILTIN)
-                    {
-                        double[] pose = ApriltagDetectionJNI.getPoseEstimate(
-                                ptrDetection,
-                                outputUnitsLength.fromUnit(metadata.distanceUnit, metadata.tagsize),
-                                fx, fy, cx, cy);
-
-                        // Build rotation matrix
-                        float[] rotMtxVals = new float[3 * 3];
-                        for (int i = 0; i < 9; i++)
-                        {
-                            rotMtxVals[i] = (float) pose[3 + i];
-                        }
-
-                        rawPose = new AprilTagPoseRaw(
-                                pose[0], pose[1], pose[2], // x y z
-                                new GeneralMatrixF(3, 3, rotMtxVals)); // R
-                    }
-                    else
-                    {
-                        Pose opencvPose = poseFromTrapezoid(
-                                cornerPts,
-                                cameraMatrix,
-                                outputUnitsLength.fromUnit(metadata.distanceUnit, metadata.tagsize),
-                                solver.code);
-
-                        // Build rotation matrix
-                        Mat R = new Mat(3, 3, CvType.CV_32F);
-                        Calib3d.Rodrigues(opencvPose.rvec, R);
-                        float[] tmp2 = new float[9];
-                        R.get(0,0, tmp2);
-
-                        rawPose = new AprilTagPoseRaw(
-                                opencvPose.tvec.get(0,0)[0], // x
-                                opencvPose.tvec.get(1,0)[0], // y
-                                opencvPose.tvec.get(2,0)[0], // z
-                                new GeneralMatrixF(3,3, tmp2)); // R
-                    }
-
-                    long endSolveTime = System.currentTimeMillis();
-                    solveTime.add(endSolveTime-startSolveTime);
-                }
-                else
-                {
-                    // We don't know anything about the tag size so we can't solve the pose
-                    rawPose = null;
-                }
-
-                if (rawPose != null)
-                {
-                    Orientation rot = Orientation.getOrientation(rawPose.R, AxesReference.INTRINSIC, AxesOrder.YXZ, outputUnitsAngle);
-
-                    ftcPose = new AprilTagPoseFtc(
-                            rawPose.x,  // x   NB: These are *intentionally* not matched directly;
-                            rawPose.z,  // y       this is the mapping between the AprilTag coordinate
-                            -rawPose.y, // z       system and the FTC coordinate system
-                            -rot.firstAngle, // yaw
-                            rot.secondAngle, // pitch
-                            rot.thirdAngle,  // roll
-                            Math.hypot(rawPose.x, rawPose.z), // range
-                            outputUnitsAngle.fromUnit(AngleUnit.RADIANS, Math.atan2(-rawPose.x, rawPose.z)), // bearing
-                            outputUnitsAngle.fromUnit(AngleUnit.RADIANS, Math.atan2(-rawPose.y, rawPose.z))); // elevation
-
-                    robotPose = computeRobotPose(rawPose, metadata, captureTimeNanos);
-                }
-                else
-                {
-                    ftcPose = null;
-                    robotPose = null;
-                }
-
-                double[] center = ApriltagDetectionJNI.getCenterpoint(ptrDetection);
-
-                detections.add(new AprilTagDetection(
-                        ApriltagDetectionJNI.getId(ptrDetection),
-                        ApriltagDetectionJNI.getHamming(ptrDetection),
-                        ApriltagDetectionJNI.getDecisionMargin(ptrDetection),
-                        new Point(center[0], center[1]), cornerPts, metadata, ftcPose, rawPose, robotPose, captureTimeNanos));
-            }
-
-            ApriltagDetectionJNI.freeDetectionList(ptrDetectionArray);
-            return detections;
+            // native code gave null pointer, nothing we can do here
+            // note native code will return null if there was nothing for
+            // it to put into the list
+            return new ArrayList<>();
         }
 
-        return new ArrayList<>();
+        long[] detectionPointers = ApriltagDetectionJNI.getDetectionPointers(ptrDetectionArray);
+        ArrayList<AprilTagDetection> detections = new ArrayList<>(detectionPointers.length);
+
+        PreliminaryFrameFindings prelimFindings = segmentFrameFindings(detectionPointers);
+
+        // Process tag clusters
+        for (TagClusterNotebook n : prelimFindings.clusterNotebooks)
+        {
+            AprilTagPoseRaw rawPose;
+            AprilTagPoseFtc ftcPose;
+            Pose3D robotPose;
+
+            rawPose = doClusterSolve(n, poseSolver);
+            ftcPose = rawPoseToFtcPose(rawPose);
+            robotPose = computeRobotPose(rawPose, n.cluster.fieldPosition, n.cluster.fieldOrientation, captureTimeNanos);
+
+            int percentClusterFound = Math.round(((float)n.detections.size() / n.cluster.clusterMembers.size()) * 100);
+
+            detections.add(new AprilTagClusterDetection(
+                    percentClusterFound, n.cluster, outputUnitsLength, ftcPose, rawPose, robotPose, captureTimeNanos)
+            );
+        }
+
+        // Process single tags
+        for (PreliminaryTagDetection det : prelimFindings.singleTags)
+        {
+            AprilTagMetadata metadata = tagLibrary.lookupTag(det.id);
+
+            AprilTagPoseRaw rawPose;
+            AprilTagPoseFtc ftcPose;
+            Pose3D robotPose;
+
+            if (metadata != null)
+            {
+                // note that poseSolver changes are not synchronized with anything so
+                // it can change at any time, however we are effectively snapshotting
+                // it when we pass it as an argument here
+                rawPose = doSingleTagPoseSolve(metadata, poseSolver, det.corners, det.ptrNativeDetection);
+
+                ftcPose = rawPoseToFtcPose(rawPose);
+                robotPose = computeRobotPose(rawPose, metadata.fieldPosition, metadata.fieldOrientation, captureTimeNanos);
+            }
+            else
+            {
+                // We don't know anything about the tag size so we can't solve the pose
+                rawPose = null;
+                ftcPose = null;
+                robotPose = null;
+            }
+
+            detections.add(new AprilTagSingleDetection(
+                    det.id,
+                    ApriltagDetectionJNI.getHamming(det.ptrNativeDetection),
+                    ApriltagDetectionJNI.getDecisionMargin(det.ptrNativeDetection),
+                    det.center, det.corners, metadata, ftcPose, rawPose, robotPose, captureTimeNanos, outputUnitsLength));
+        }
+
+        // in the null ptr case we will have returned before we get here
+        ApriltagDetectionJNI.freeDetectionList(ptrDetectionArray);
+
+        return detections;
     }
 
-    private Pose3D computeRobotPose(AprilTagPoseRaw rawPose, AprilTagMetadata metadata, long acquisitionTime)
+    private Pose3D computeRobotPose(AprilTagPoseRaw rawPose, VectorF fieldPosition, Quaternion fieldOrientation, long acquisitionTime)
     {
         // Compute transformation matrix of tag pose in field reference frame
-        float tagInFieldX = metadata.fieldPosition.get(0);
-        float tagInFieldY = metadata.fieldPosition.get(1);
-        float tagInFieldZ = metadata.fieldPosition.get(2);
-        OpenGLMatrix tagInFieldR = new OpenGLMatrix(metadata.fieldOrientation.toMatrix());
+        float tagInFieldX = fieldPosition.get(0);
+        float tagInFieldY = fieldPosition.get(1);
+        float tagInFieldZ = fieldPosition.get(2);
+        OpenGLMatrix tagInFieldR = new OpenGLMatrix(fieldOrientation.toMatrix());
         OpenGLMatrix tagInFieldFrame = OpenGLMatrix.identityMatrix()
                 .translated(tagInFieldX, tagInFieldY, tagInFieldZ)
                 .multiplied(tagInFieldR);
@@ -399,8 +516,8 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
         // Compute transformation matrix of robot pose in field frame
         OpenGLMatrix robotInFieldFrame =
                 tagInFieldFrame
-                        .multiplied(cameraInTagFrame)
-                        .multiplied(robotInCameraFrame);
+                .multiplied(cameraInTagFrame)
+                .multiplied(robotInCameraFrame);
 
         // Extract robot location
         VectorF robotInFieldTranslation = robotInFieldFrame.getTranslation();
@@ -448,20 +565,17 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
                     // Could be null if we couldn't solve the pose earlier due to not knowing tag size
                     if (detection.rawPose != null)
                     {
-                        AprilTagMetadata metadata = tagLibrary.lookupTag(detection.id);
-                        double tagSize = outputUnitsLength.fromUnit(metadata.distanceUnit, metadata.tagsize);
-
                         if (drawOutline)
                         {
-                            canvasAnnotator.drawOutlineMarker(detection, canvas, tagSize);
+                            canvasAnnotator.drawOutlineMarker(detection, canvas);
                         }
                         if (drawAxes)
                         {
-                            canvasAnnotator.drawAxisMarker(detection, canvas, tagSize);
+                            canvasAnnotator.drawAxisMarker(detection, canvas);
                         }
                         if (drawCube)
                         {
-                            canvasAnnotator.draw3dCubeMarker(detection, canvas, tagSize);
+                            canvasAnnotator.draw3dRectMarker(detection, canvas);
                         }
                     }
                 }
@@ -587,6 +701,17 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
         return pose;
     }
 
+    static Pose poseFromNGrt4Pts(Point[] imagePts, Point3[] idealSpacialProjectedPts, Mat cameraMatrix, int solveMethod)
+    {
+        MatOfPoint2f points2d = new MatOfPoint2f(imagePts);
+        MatOfPoint3f points3d = new MatOfPoint3f(idealSpacialProjectedPts);
+
+        Pose pose = new Pose();
+        Calib3d.solvePnP(points3d, points2d, cameraMatrix, new MatOfDouble(), pose.rvec, pose.tvec, false, solveMethod);
+
+        return pose;
+    }
+
     /*
      * A simple container to hold both rotation and translation
      * vectors, which together form a 6DOF pose.
@@ -608,5 +733,76 @@ public class AprilTagProcessorImpl extends AprilTagProcessor
             this.tvec = tvec;
         }
     }
-}
 
+    static class TagClusterNotebook
+    {
+        private AprilTagClusterMetadata cluster;
+        private ArrayList<PreliminaryTagDetection> detections = new ArrayList<>();
+
+        TagClusterNotebook(AprilTagClusterMetadata cluster)
+        {
+            this.cluster = cluster;
+        }
+
+        boolean isFor(AprilTagClusterMetadata cluster)
+        {
+            return this.cluster == cluster;
+        }
+
+        void note(PreliminaryTagDetection det)
+        {
+            detections.add(det);
+        }
+    }
+
+    static class PreliminaryTagDetection
+    {
+        final int id;
+        final Point center;
+        final Point[] corners;
+        final long ptrNativeDetection;
+
+        PreliminaryTagDetection(int id, Point center, Point[] corners, long ptrNativeDetection)
+        {
+            this.id = id;
+            this.center = center;
+            this.corners = corners;
+            this.ptrNativeDetection = ptrNativeDetection;
+        }
+    }
+
+    static class PreliminaryFrameFindings
+    {
+        ArrayList<TagClusterNotebook> clusterNotebooks;
+        ArrayList<PreliminaryTagDetection> singleTags;
+
+        PreliminaryFrameFindings()
+        {
+            clusterNotebooks = new ArrayList<>();
+            singleTags = new ArrayList<>();
+        }
+
+        void noteSingleTag(PreliminaryTagDetection detection)
+        {
+            singleTags.add(detection);
+        }
+
+        void noteClusterTag(PreliminaryTagDetection detection, AprilTagClusterMetadata parentCluster)
+        {
+            // do we already have a notebook that matches?
+            for (TagClusterNotebook notebook : clusterNotebooks)
+            {
+                if (notebook.isFor(parentCluster))
+                {
+                    notebook.note(detection);
+                    return;
+                }
+            }
+
+            // no, we need to make a new one
+            TagClusterNotebook n = new TagClusterNotebook(parentCluster);
+            n.note(detection);
+            clusterNotebooks.add(n);
+        }
+    }
+}

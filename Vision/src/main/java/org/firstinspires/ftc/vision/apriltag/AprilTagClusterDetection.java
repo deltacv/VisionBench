@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 FIRST
+ * Copyright (c) 2026 FIRST
  *
  * All rights reserved.
  *
@@ -38,43 +38,26 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.opencv.core.Point;
 
 /**
- * This class represents shared elements of an AprilTag detection,
- * whether it be for a cluster or for a single tag
+ * This class represents the detection of an AprilTag cluster
  */
-public abstract class AprilTagDetection
+public class AprilTagClusterDetection extends AprilTagDetection
 {
-    /*
-     * 6DOF pose data formatted in useful ways for FTC gameplay
+    /**
+     * The percentage of the number of tags in the cluster that were found
      */
-    public final AprilTagPoseFtc ftcPose;
+    public final int percentClusterFound;
 
     /*
-     * Raw translation vector and orientation matrix returned by the pose solver
+     * Metadata known about this tag cluster from the tag library set on the detector
      */
-    public final AprilTagPoseRaw rawPose;
+    public final AprilTagClusterMetadata metadata;
 
-    /*
-     * Robot pose data returned by the pose solver
-     */
-    public final Pose3D robotPose;
-
-    /*
-     * Timestamp of when the image in which this detection was found was acquired
-     */
-    public final long frameAcquisitionNanoTime;
-
-    /*
-     * Distance Units for ftcPose and rawPose
-     */
-    public final DistanceUnit distanceUnit;
-
-    public AprilTagDetection(AprilTagPoseFtc ftcPose, AprilTagPoseRaw rawPose,
-                             Pose3D robotPose, long frameAcquisitionNanoTime, DistanceUnit distanceUnit)
+    public AprilTagClusterDetection(int percentClusterFound, AprilTagClusterMetadata metadata, DistanceUnit distanceUnit,
+                                    AprilTagPoseFtc ftcPose, AprilTagPoseRaw rawPose, Pose3D robotPose, long frameAcquisitionNanoTime)
     {
-        this.ftcPose = ftcPose;
-        this.rawPose = rawPose;
-        this.robotPose = robotPose;
-        this.frameAcquisitionNanoTime = frameAcquisitionNanoTime;
-        this.distanceUnit = distanceUnit;
+        super(ftcPose, rawPose, robotPose, frameAcquisitionNanoTime, distanceUnit);
+
+        this.percentClusterFound = percentClusterFound;
+        this.metadata = metadata;
     }
 }

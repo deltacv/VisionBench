@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 FIRST
+ * Copyright (c) 2026 FIRST
  *
  * All rights reserved.
  *
@@ -38,43 +38,52 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.opencv.core.Point;
 
 /**
- * This class represents shared elements of an AprilTag detection,
- * whether it be for a cluster or for a single tag
+ * This class represents the detection of a SINGLE AprilTag, that is not part of a cluster
  */
-public abstract class AprilTagDetection
+public class AprilTagSingleDetection extends AprilTagDetection
 {
-    /*
-     * 6DOF pose data formatted in useful ways for FTC gameplay
+    /**
+     * The numerical ID of the detection
      */
-    public final AprilTagPoseFtc ftcPose;
+    public final int id;
+
+    /**
+     * The number of bits corrected when reading the tag ID payload
+     */
+    public final int hamming;
 
     /*
-     * Raw translation vector and orientation matrix returned by the pose solver
+     * How much margin remains before the detector would decide to reject a tag
      */
-    public final AprilTagPoseRaw rawPose;
+    public final float decisionMargin;
 
     /*
-     * Robot pose data returned by the pose solver
+     * The image pixel coordinates of the corners of the tag
      */
-    public final Pose3D robotPose;
+    public final Point[] corners;
 
     /*
-     * Timestamp of when the image in which this detection was found was acquired
+     * The image pixel coordinates of the center of the tag
      */
-    public final long frameAcquisitionNanoTime;
+    public final Point center;
 
     /*
-     * Distance Units for ftcPose and rawPose
+     * Metadata known about this tag from the tag library set on the detector;
+     * will be NULL if the tag was not in the tag library
      */
-    public final DistanceUnit distanceUnit;
+    public final AprilTagMetadata metadata;
 
-    public AprilTagDetection(AprilTagPoseFtc ftcPose, AprilTagPoseRaw rawPose,
-                             Pose3D robotPose, long frameAcquisitionNanoTime, DistanceUnit distanceUnit)
+    public AprilTagSingleDetection(int id, int hamming, float decisionMargin, Point center, Point[] corners,
+                                   AprilTagMetadata metadata, AprilTagPoseFtc ftcPose, AprilTagPoseRaw rawPose,
+                                   Pose3D robotPose, long frameAcquisitionNanoTime, DistanceUnit distanceUnit)
     {
-        this.ftcPose = ftcPose;
-        this.rawPose = rawPose;
-        this.robotPose = robotPose;
-        this.frameAcquisitionNanoTime = frameAcquisitionNanoTime;
-        this.distanceUnit = distanceUnit;
+        super(ftcPose, rawPose, robotPose, frameAcquisitionNanoTime,distanceUnit);
+
+        this.id = id;
+        this.hamming = hamming;
+        this.decisionMargin = decisionMargin;
+        this.metadata = metadata;
+        this.corners = corners;
+        this.center = center;
     }
 }

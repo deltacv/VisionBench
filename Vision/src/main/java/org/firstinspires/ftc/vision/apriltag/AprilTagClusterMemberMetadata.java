@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 FIRST
+ * Copyright (c) 2026 FIRST
  *
  * All rights reserved.
  *
@@ -33,48 +33,23 @@
 
 package org.firstinspires.ftc.vision.apriltag;
 
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
-import org.opencv.core.Point;
+import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 
-/**
- * This class represents shared elements of an AprilTag detection,
- * whether it be for a cluster or for a single tag
- */
-public abstract class AprilTagDetection
+public class AprilTagClusterMemberMetadata
 {
-    /*
-     * 6DOF pose data formatted in useful ways for FTC gameplay
-     */
-    public final AprilTagPoseFtc ftcPose;
+    public final int id;
+    public final VectorF positionInClusterPlane;
+    public final double tagsize;
 
-    /*
-     * Raw translation vector and orientation matrix returned by the pose solver
+    /**
+     * @param id the ID of the tag
+     * @param tagsize the physical size of the tag in the real world (measured black edge to black edge)
+     * @param positionInClusterPlane a vector describing the tag's 3d translation on the cluster
      */
-    public final AprilTagPoseRaw rawPose;
-
-    /*
-     * Robot pose data returned by the pose solver
-     */
-    public final Pose3D robotPose;
-
-    /*
-     * Timestamp of when the image in which this detection was found was acquired
-     */
-    public final long frameAcquisitionNanoTime;
-
-    /*
-     * Distance Units for ftcPose and rawPose
-     */
-    public final DistanceUnit distanceUnit;
-
-    public AprilTagDetection(AprilTagPoseFtc ftcPose, AprilTagPoseRaw rawPose,
-                             Pose3D robotPose, long frameAcquisitionNanoTime, DistanceUnit distanceUnit)
+    public AprilTagClusterMemberMetadata(int id, VectorF positionInClusterPlane, double tagsize)
     {
-        this.ftcPose = ftcPose;
-        this.rawPose = rawPose;
-        this.robotPose = robotPose;
-        this.frameAcquisitionNanoTime = frameAcquisitionNanoTime;
-        this.distanceUnit = distanceUnit;
+        this.id = id;
+        this.positionInClusterPlane = positionInClusterPlane;
+        this.tagsize = tagsize;
     }
 }

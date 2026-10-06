@@ -37,6 +37,8 @@ import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Quaternion;
 
+import java.util.ArrayList;
+
 public class AprilTagGameDatabase
 {
     /**
@@ -46,8 +48,8 @@ public class AprilTagGameDatabase
     public static AprilTagLibrary getCurrentGameTagLibrary()
     {
         return new AprilTagLibrary.Builder()
-                .addTags(getSampleTagLibrary())
-                .addTags(getDecodeTagLibrary())
+                .addLibrary(getSampleTagLibrary())
+                .addLibrary(getBioBuzzTagLibrary())
                 .build();
     }
 
@@ -123,7 +125,8 @@ public class AprilTagGameDatabase
      * Get the {@link AprilTagLibrary} for the Decode FTC game
      * @return the {@link AprilTagLibrary} for the Decode FTC game
      */
-    public static AprilTagLibrary getDecodeTagLibrary(){
+    public static AprilTagLibrary getDecodeTagLibrary()
+    {
         return new AprilTagLibrary.Builder()
                 .addTag(20, "BlueTarget",
                         6.5, new VectorF(-58.3727f, -55.6425f, 29.5f), DistanceUnit.INCH,
@@ -141,22 +144,105 @@ public class AprilTagGameDatabase
     }
 
     /**
+     * Get the {@link AprilTagLibrary} for the BioBuzz FTC game
+     * @return the {@link AprilTagLibrary} for the BioBuzz FTC game
+     */
+    public static AprilTagLibrary getBioBuzzTagLibrary()
+    {
+        AprilTagClusterMetadata redScoring = new AprilTagClusterMetadata(
+                getBioBuzzCluster(30),
+                "RED SCORING",
+                "RED SCORING",
+                new VectorF(0,0,0),
+                DistanceUnit.INCH,
+                Quaternion.identityQuaternion());
+
+        AprilTagClusterMetadata redAudience = new AprilTagClusterMetadata(
+                getBioBuzzCluster(34),
+                "RED AUDIENCE",
+                "RED AUDIENCE",
+                new VectorF(0,0,0),
+                DistanceUnit.INCH,
+                Quaternion.identityQuaternion());
+
+        AprilTagClusterMetadata blueAudience = new AprilTagClusterMetadata(
+                getBioBuzzCluster(38),
+                "BLUE AUDIENCE",
+                "BLUE AUDIENCE",
+                new VectorF(0,0,0),
+                DistanceUnit.INCH,
+                Quaternion.identityQuaternion());
+
+        AprilTagClusterMetadata blueScoring = new AprilTagClusterMetadata(
+                getBioBuzzCluster(42),
+                "BLUE SCORING",
+                "BLUE SCORING",
+                new VectorF(0,0,0),
+                DistanceUnit.INCH,
+                Quaternion.identityQuaternion());
+
+        return new AprilTagLibrary.Builder()
+                .addCluster(redScoring)
+                .addCluster(redAudience)
+                .addCluster(blueAudience)
+                .addCluster(blueScoring)
+                .build();
+    }
+
+    private static ArrayList<AprilTagClusterMemberMetadata> getBioBuzzCluster(int firstID) {
+
+        final double tagSize = 3.25;
+        final float  offsetY = 7.1874f;
+        final float  offsetZ = -5.622f;
+
+        final VectorF TagL1 = new VectorF(-6.50f, offsetY, offsetZ);
+        final VectorF TagL2 = new VectorF(-2.75f, offsetY, offsetZ);
+        final VectorF TagR1 = new VectorF( 2.75f, offsetY, offsetZ);
+        final VectorF TagR2 = new VectorF( 6.50f, offsetY, offsetZ);
+
+        ArrayList<AprilTagClusterMemberMetadata> cluster = new ArrayList<>();
+
+        cluster.add(new AprilTagClusterMemberMetadata(firstID, TagL1, tagSize));
+        cluster.add(new AprilTagClusterMemberMetadata(firstID + 1, TagL2, tagSize));
+        cluster.add(new AprilTagClusterMemberMetadata(firstID + 2, TagR1, tagSize));
+        cluster.add(new AprilTagClusterMemberMetadata(firstID + 3, TagR2, tagSize));
+
+        return cluster;
+    }
+
+    /**
      * Get the {@link AprilTagLibrary} for the tags used in the sample OpModes
      * @return the {@link AprilTagLibrary} for the tags used in the sample OpModes
+     * Library contains 4 single AprilTags, and one cluster of 2 AprilTags.
      */
     public static AprilTagLibrary getSampleTagLibrary()
     {
+        ArrayList<AprilTagClusterMemberMetadata> clstMem = new ArrayList<>();
+
+        clstMem.add(new AprilTagClusterMemberMetadata(
+                581, new VectorF(-2.0f, 0.0f, 0.0f), 3.0));
+        clstMem.add(new AprilTagClusterMemberMetadata(
+                582, new VectorF(2.0f,  0.0f, 0.0f), 3.0));
+
+        AprilTagClusterMetadata clusterMetadata = new AprilTagClusterMetadata(
+                clstMem,
+                "Center Goal",
+                "GOAL",
+                new VectorF(0,0,0),
+                DistanceUnit.INCH,
+                Quaternion.identityQuaternion());
+
         return new AprilTagLibrary.Builder()
-                .addTag(583, "Nemo",
+                .addTag(583, "Robbie",
+                        2, DistanceUnit.INCH)
+                .addTag(584, "Number 5",
                         4, DistanceUnit.INCH)
-                .addTag(584, "Jonah",
-                        4, DistanceUnit.INCH)
-                .addTag(585, "Cousteau",
+                .addTag(585, "C3PO",
                         6, DistanceUnit.INCH)
-                .addTag(586, "Ariel",
+                .addTag(586, "K9",
                         6, DistanceUnit.INCH)
+                .addCluster(clusterMetadata)
                 .build();
     }
+
 }
-
-

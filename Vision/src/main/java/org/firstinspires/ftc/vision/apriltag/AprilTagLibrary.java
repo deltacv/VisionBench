@@ -45,31 +45,44 @@ import java.util.ArrayList;
  */
 public class AprilTagLibrary
 {
-    private final AprilTagMetadata[] data;
+    private final AprilTagMetadata[] singleTags;
+    private final AprilTagClusterMetadata[] clusters;
 
-    private AprilTagLibrary(AprilTagMetadata[] data)
+    private AprilTagLibrary(AprilTagMetadata[] singleTags, AprilTagClusterMetadata[] clusters)
     {
-        this.data = data;
+        this.singleTags = singleTags;
+        this.clusters = clusters;
     }
 
     /**
-     * Get the metadata of all tags in this library
-     * @return the metadata of all tags in this library
+     * Get the metadata of all single tags in this library
+     * @return the metadata of all single tags in this library
      */
     public AprilTagMetadata[] getAllTags()
     {
-        return data;
+        return singleTags;
+    }
+
+    /**
+     * Get the metadata of all tag clusters in this library
+     * @return the metadata of all tag clusters in this library
+     */
+    public AprilTagClusterMetadata[] getAllClusters()
+    {
+        return clusters;
     }
 
     /**
      * Get the metadata for a specific tag in this library
+     * Note this will NOT check if the tag is known as a member
+     * of a cluster, for that you need to call sibling method
      * @param id the ID of the tag in question
      * @return either {@link AprilTagMetadata} for the tag, or
      * NULL if it isn't in this library
      */
     public AprilTagMetadata lookupTag(int id)
     {
-        for (AprilTagMetadata tagMetadata : data)
+        for (AprilTagMetadata tagMetadata : singleTags)
         {
             if (tagMetadata.id == id)
             {
@@ -80,9 +93,29 @@ public class AprilTagLibrary
         return null;
     }
 
+    /**
+     * Get the metadata for a tag cluster that this tag belongs
+     * @param id the ID of the tag in question
+     * @return either {@link AprilTagClusterMetadata} for the tag, or
+     *      * NULL if it isn't in this library
+     */
+    public AprilTagClusterMetadata lookupCluster(int id)
+    {
+        for (AprilTagClusterMetadata m : clusters)
+        {
+            if (m.containsTagId(id))
+            {
+                return m;
+            }
+        }
+
+        return null;
+    }
+
     public static class Builder
     {
-        private ArrayList<AprilTagMetadata> data = new ArrayList<>();
+        private ArrayList<AprilTagMetadata> singleTagData = new ArrayList<>();
+        private ArrayList<AprilTagClusterMetadata> clusterData = new ArrayList<>();
         private boolean allowOverwrite = false;
 
         /**
@@ -106,14 +139,14 @@ public class AprilTagLibrary
          */
         public Builder addTag(AprilTagMetadata aprilTagMetadata)
         {
-            for (AprilTagMetadata m : data)
+            for (AprilTagMetadata m : singleTagData)
             {
                 if (m.id == aprilTagMetadata.id)
                 {
                     if (allowOverwrite)
                     {
                         // This is ONLY safe bc we immediately stop iteration here
-                        data.remove(m);
+                        singleTagData.remove(m);
                         break;
                     }
                     else
@@ -123,7 +156,66 @@ public class AprilTagLibrary
                 }
             }
 
-            data.add(aprilTagMetadata);
+            for (AprilTagClusterMetadata c : clusterData)
+            {
+                if (c.containsTagId(aprilTagMetadata.id))
+                {
+                    throw new RuntimeException("You attempted to add a tag to the library when it contains a tag cluster that has a member with the same tag id");
+                }
+            }
+
+            singleTagData.add(aprilTagMetadata);
+            return this;
+        }
+
+        /**
+         * Add a tag cluster to this tag library
+         * @param cluster the cluster to add
+         * @return the {@link Builder} object, to allow for method chaining
+         * @throws RuntimeException if trying to add a tag that already exists in this library
+         * @throws RuntimeException if trying to add a tag cluster that already exists
+         * in this library, unless you called {@link #setAllowOverwrite(boolean)}
+         */
+        public Builder addCluster(AprilTagClusterMetadata cluster)
+        {
+            for (AprilTagMetadata m : singleTagData)
+            {
+                if (cluster.containsTagId(m.id))
+                {
+                    throw new RuntimeException("You attempted to add a tag cluster to the library when a tag ID in that cluster is already contained as a single tag in this library.");
+                }
+            }
+
+            for (AprilTagClusterMetadata m : clusterData)
+            {
+                for (Integer i : m.getMemberIds())
+                {
+                    if (cluster.containsTagId(i))
+                    {
+                        throw new RuntimeException("You attempted to add a tag cluster to the library that has clashing tag ids with another cluster in the library");
+                    }
+                }
+            }
+
+            for (AprilTagClusterMetadata m : clusterData)
+            {
+                if (m.name.equals(cluster.name))
+                {
+                    if (allowOverwrite)
+                    {
+                        // This is ONLY safe bc we immediately stop iteration here
+                        clusterData.remove(m);
+                        break;
+                    }
+                    else
+                    {
+                        throw new RuntimeException("You attempted to add a tag cluster to the library when it already contains a tag cluster with the same name. You can call .setAllowOverwrite(true) to allow overwriting the existing entry");
+                    }
+                }
+            }
+
+            clusterData.add(cluster);
+
             return this;
         }
 
@@ -177,14 +269,41 @@ public class AprilTagLibrary
         }
 
         /**
+         * Add multiple clusters to this tag library
+         * @param library an existing tag library to add to this one
+         * @return the {@link Builder} object, to allow for method chaining
+         * @throws RuntimeException if trying to add a cluster that already exists
+         * in this library, unless you called {@link #setAllowOverwrite(boolean)}
+         */
+        public Builder addClusters(AprilTagLibrary library)
+        {
+            for (AprilTagClusterMetadata m : library.getAllClusters())
+            {
+                // Delegate to this implementation so we get duplicate checking for free
+                addCluster(m);
+            }
+            return this;
+        }
+
+        /**
+         * Shorthand for {@link #addTags(AprilTagLibrary)} then {@link #addClusters(AprilTagLibrary)}
+         * @param lib
+         * @return
+         */
+        public Builder addLibrary(AprilTagLibrary lib)
+        {
+            addTags(lib);
+            addClusters(lib);
+            return this;
+        }
+
+        /**
          * Create an {@link AprilTagLibrary} object from the specified tags
          * @return an {@link AprilTagLibrary} object
          */
         public AprilTagLibrary build()
         {
-            return new AprilTagLibrary(data.toArray(new AprilTagMetadata[0]));
+            return new AprilTagLibrary(singleTagData.toArray(new AprilTagMetadata[0]), clusterData.toArray(new AprilTagClusterMetadata[0]));
         }
     }
 }
-
-

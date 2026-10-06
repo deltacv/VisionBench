@@ -83,7 +83,7 @@ public abstract class AprilTagProcessor implements VisionProcessor
         private int threads = THREADS_DEFAULT;
         private boolean suppressCalibrationWarnings;
 
-        private boolean drawAxes = false;
+        private boolean drawAxes = true;  // Changed to highlight Cluster Origin Location.
         private boolean drawCube = false;
         private boolean drawOutline = true;
         private boolean drawTagId = true;
@@ -324,6 +324,4 @@ public abstract class AprilTagProcessor implements VisionProcessor
      */
     public abstract ArrayList<AprilTagDetection> getFreshDetections();
 }
-
-
 

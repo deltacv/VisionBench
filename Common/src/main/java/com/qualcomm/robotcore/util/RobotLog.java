@@ -44,5 +44,20 @@ public class RobotLog {
     public static void ee(String tag, String message) {
         LoggerFactory.getLogger(tag).error(message);
     }
-}
 
+    public static void ee(String tag, String format, Object... args) {
+        LoggerFactory.getLogger(tag).error(String.format(format, args));
+    }
+
+    public static void ee(String tag, Throwable throwable, String format, Object... args) {
+        LoggerFactory.getLogger(tag).error(String.format(format, args), throwable);
+    }
+
+    public static void dd(String tag, String message) {
+        LoggerFactory.getLogger(tag).debug(message);
+    }
+
+    public static void dd(String tag, String format, Object... args) {
+        LoggerFactory.getLogger(tag).debug(String.format(format, args));
+    }
+}

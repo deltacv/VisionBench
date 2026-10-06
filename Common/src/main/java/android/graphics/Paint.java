@@ -24,6 +24,7 @@ import org.jetbrains.skia.PaintStrokeCap;
 import org.jetbrains.skia.PaintStrokeJoin;
 
 public class Paint {
+
     /**
      * The Style specifies if the primitive being drawn is filled, stroked, or
      * both (in the same color). The default is FILL.
@@ -360,6 +361,11 @@ public class Paint {
 
     public float getTextSize() {
         return textSize;
+    }
+
+    public float measureText(String text) {
+        Font font = getFont();
+        return font.measureTextWidth(text, thePaint);
     }
 
 }

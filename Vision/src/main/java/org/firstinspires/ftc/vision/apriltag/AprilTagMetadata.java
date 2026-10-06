@@ -47,7 +47,6 @@ public class AprilTagMetadata
     public final Quaternion fieldOrientation;
 
     /**
-     * Add a tag to this tag library
      * @param id the ID of the tag
      * @param name a text name for the tag
      * @param tagsize the physical size of the tag in the real world (measured black edge to black edge)
@@ -66,7 +65,6 @@ public class AprilTagMetadata
     }
 
     /**
-     * Add a tag to this tag library
      * @param id the ID of the tag
      * @param name a text name for the tag
      * @param tagsize the physical size of the tag in the real world (measured black edge to black edge)
@@ -82,5 +80,3 @@ public class AprilTagMetadata
       this.distanceUnit = distanceUnit;
     }
 }
-
-

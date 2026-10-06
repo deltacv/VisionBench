@@ -65,4 +65,3 @@ public class AprilTagPoseRaw
         this.R = R;
     }
 }
-
