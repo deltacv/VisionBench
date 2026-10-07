@@ -23,6 +23,37 @@ class SidebarPanel : JTabbedPane(), KoinComponent {
 
     private val logger by loggerForThis()
 
+    private fun normalizedSelectedIndex(index: Int): Int {
+        if (tabCount == 0) return -1
+        return index.coerceIn(0, tabCount - 1)
+    }
+
+    override fun setSelectedIndex(index: Int) {
+        val normalizedIndex = normalizedSelectedIndex(index)
+        if (normalizedIndex == -1) {
+            super.setSelectedIndex(-1)
+            previousActiveIndex = -1
+            return
+        }
+
+        super.setSelectedIndex(normalizedIndex)
+        previousActiveIndex = normalizedIndex
+    }
+
+    override fun removeTabAt(index: Int) {
+        if (tabCount == 0) return
+
+        val originalIndex = index.coerceIn(0, tabCount - 1)
+        super.removeTabAt(originalIndex)
+
+        val nextSelection = if (tabCount == 0) -1 else normalizedSelectedIndex(selectedIndex)
+        if (nextSelection == -1) {
+            previousActiveIndex = -1
+        } else {
+            previousActiveIndex = nextSelection
+        }
+    }
+
     init {
         font = font.deriveFont(Font.PLAIN, 14f)
 

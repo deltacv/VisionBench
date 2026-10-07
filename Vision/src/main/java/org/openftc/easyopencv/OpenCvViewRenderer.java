@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 OpenFTC Team
+ * Copyright (c) 2023 OpenFTC Team & 2026 Sebastian Erives
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -341,21 +341,5 @@ public class OpenCvViewRenderer
         canvas.drawText(fpsMeterDescriptor, statBoxLTxtStart, textLine1Y, fpsMeterTextPaint);
         canvas.drawText("VIEWPORT PAUSED", statBoxLTxtStart, textLine2Y, fpsMeterTextPaint);
         //canvas.drawText("Hi", statBoxLTxtStart, textLine3Y, fpsMeterTextPaint);
-    }
-
-    public void renderNoLiveView(Canvas canvas)
-    {
-        canvas.drawColor(Color.WHITE);
-
-        Paint noLiveViewPaint = new Paint();
-        noLiveViewPaint.setColor(Color.BLACK);
-        noLiveViewPaint.setTextSize(40f * metricsScale);
-        noLiveViewPaint.setAntiAlias(true);
-        noLiveViewPaint.setTypeface(Typeface.DEFAULT_BOLD);
-        String msg = "No Active View";
-        float textWidth = noLiveViewPaint.measureText(msg);
-        float x = (canvas.getWidth() - textWidth) / 2f;
-        float y = canvas.getHeight() / 2f;
-        canvas.drawText(msg, x, y, noLiveViewPaint);
     }
 }

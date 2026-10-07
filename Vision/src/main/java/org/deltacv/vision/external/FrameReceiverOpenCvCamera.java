@@ -7,7 +7,6 @@ package org.deltacv.vision.external;
 
 import org.deltacv.vision.external.source.VisionSource;
 import org.deltacv.vision.external.source.FrameReceiver;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.CameraControls;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.*;
 import org.firstinspires.ftc.robotcore.internal.camera.calibration.CameraCalibrationIdentity;
 import org.opencv.core.Core;

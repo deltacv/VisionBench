@@ -7,6 +7,8 @@ package org.deltacv.vision.external.gui
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
 import org.deltacv.common.image.MatPoster
 import org.firstinspires.ftc.robotcore.internal.collections.EvictingBlockingQueue
 import org.jetbrains.skia.Color
@@ -373,10 +375,31 @@ class SwingOpenCvViewport(
                 }
 
                 else -> {
-                    renderer.renderNoLiveView(canvas)
+                    drawNoActiveView(canvas)
                 }
             }
         }
+    }
+
+    private fun drawNoActiveView(canvas: Canvas) {
+        val backgroundColor = if (dark) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+        val textColor = if (dark) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+
+        canvas.drawColor(backgroundColor)
+
+        val paint = Paint().apply {
+            color = textColor
+            textSize = 40f
+            isAntiAlias = true
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        val message = "No Active View"
+        val textWidth = paint.measureText(message)
+        val x = (canvas.width - textWidth) / 2f
+        val y = canvas.height / 2f
+
+        canvas.drawText(message, x, y, paint)
     }
 
     fun clearViewport() {
@@ -401,7 +424,8 @@ class SwingOpenCvViewport(
 
     companion object {
         private const val VISION_PREVIEW_FRAME_QUEUE_CAPACITY = 2
-        private const val FRAMEBUFFER_RECYCLER_CAPACITY =
-            VISION_PREVIEW_FRAME_QUEUE_CAPACITY + 4 //So that the evicting queue can be full, and the render thread has one checked out (+1) and post() can still take one (+1).
+
+        //So that the evicting queue can be full, and the render thread has one checked out (+1) and post() can still take one (+1).
+        private const val FRAMEBUFFER_RECYCLER_CAPACITY = VISION_PREVIEW_FRAME_QUEUE_CAPACITY + 4
     }
 }

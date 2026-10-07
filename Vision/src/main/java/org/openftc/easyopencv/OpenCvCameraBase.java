@@ -64,7 +64,9 @@ public abstract class OpenCvCameraBase implements OpenCvCamera {
 
     @Override
     public void showFpsMeterOnViewport(boolean show) {
-        viewport.setFpsMeterEnabled(show);
+        if (viewport != null) {
+            viewport.setFpsMeterEnabled(show);
+        }
     }
 
     @Override
@@ -83,7 +85,9 @@ public abstract class OpenCvCameraBase implements OpenCvCamera {
 
     @Override
     public void setViewportRenderingPolicy(ViewportRenderingPolicy policy) {
-        viewport.setRenderingPolicy(policy);
+        if (viewport != null) {
+            viewport.setRenderingPolicy(policy);
+        }
     }
 
     @Override
