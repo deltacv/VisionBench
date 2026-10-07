@@ -150,9 +150,10 @@ public abstract class VisionPortal
         private CameraName camera;
         private int cameraMonitorViewId = DEFAULT_VIEW_CONTAINER_ID; // 0 == none
         private boolean autoStopLiveView = true;
+        private boolean autoStartStreamOnBuild = true;
+        private boolean showStatsOverlay = true;
         private Size cameraResolution = new Size(640, 480);
         private StreamFormat streamFormat = null;
-        private StreamFormat STREAM_FORMAT_DEFAULT = StreamFormat.YUY2;
         private final List<VisionProcessor> processors = new ArrayList<>();
 
         /**
@@ -177,6 +178,18 @@ public abstract class VisionPortal
             return this;
         }
 
+        public Builder setAutoStartStreamOnBuild(boolean autoStartStreamOnBuild)
+        {
+            this.autoStartStreamOnBuild = autoStartStreamOnBuild;
+            return this;
+        }
+
+        public Builder setShowStatsOverlay(boolean showStatsOverlay)
+        {
+            this.showStatsOverlay = showStatsOverlay;
+            return this;
+        }
+
         /**
          * Configure the vision portal to stream from the camera in a certain image format
          * THIS APPLIES TO WEBCAMS ONLY!
@@ -196,7 +209,14 @@ public abstract class VisionPortal
          */
         public Builder enableLiveView(boolean enableLiveView)
         {
-            setLiveViewContainerId(1);
+            if (enableLiveView)
+            {
+                setLiveViewContainerId(1);
+            }
+            else
+            {
+                this.cameraMonitorViewId = DEFAULT_VIEW_CONTAINER_ID;
+            }
             return this;
         }
 
@@ -298,15 +318,14 @@ public abstract class VisionPortal
                     throw new IllegalStateException("setStreamFormat() may only be used with a webcam");
                 }
             }
-            else
-            {
-                // Only used with webcams, will be ignored for internal camera
-                streamFormat = STREAM_FORMAT_DEFAULT;
-            }
 
-            return new VisionPortalImpl(
+            VisionPortal portal = new VisionPortalImpl(
                     camera, cameraMonitorViewId, autoStopLiveView, cameraResolution, streamFormat,
+                    autoStartStreamOnBuild, showStatsOverlay,
                     processors.toArray(new VisionProcessor[0]));
+
+            processors.clear();
+            return portal;
         }
     }
 

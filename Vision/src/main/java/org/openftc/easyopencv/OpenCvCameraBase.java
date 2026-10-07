@@ -69,12 +69,16 @@ public abstract class OpenCvCameraBase implements OpenCvCamera {
 
     @Override
     public void pauseViewport() {
-        viewport.pause();
+        if (viewport != null && viewportEnabled) {
+            viewport.pause();
+        }
     }
 
     @Override
     public void resumeViewport() {
-        viewport.resume();
+        if (viewport != null && viewportEnabled) {
+            viewport.resume();
+        }
     }
 
     @Override
@@ -154,7 +158,7 @@ public abstract class OpenCvCameraBase implements OpenCvCamera {
         this.width = sizeAfterRotation.width;
         this.height = sizeAfterRotation.height;
 
-        if(viewport != null)
+        if (viewport != null && viewportEnabled)
         {
             // viewport.setSize(width, height);
             viewport.setOptimizedViewRotation(getOptimizedViewportRotation(rotation));
@@ -165,7 +169,7 @@ public abstract class OpenCvCameraBase implements OpenCvCamera {
     public synchronized final void cleanupForEndStreaming() {
         matToUseIfPipelineReturnedCropped = null;
 
-        if (viewport != null) {
+        if (viewport != null && viewportEnabled) {
             viewport.deactivate();
         }
     }

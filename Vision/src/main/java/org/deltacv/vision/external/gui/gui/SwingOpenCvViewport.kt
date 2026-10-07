@@ -372,7 +372,9 @@ class SwingOpenCvViewport(
                     }
                 }
 
-                else -> {}
+                else -> {
+                    renderer.renderNoLiveView(canvas)
+                }
             }
         }
     }

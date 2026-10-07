@@ -53,11 +53,14 @@ import org.openftc.easyopencv.TimestampedOpenCvPipeline;
 public class VisionPortalImpl extends VisionPortal
 {
     protected OpenCvCamera camera;
+    protected final int cameraMonitorViewId;
     protected volatile CameraState cameraState = CameraState.CAMERA_DEVICE_CLOSED;
     protected VisionProcessor[] processors;
     protected volatile boolean[] processorsEnabled;
     protected volatile CameraCalibration calibration;
     protected final boolean autoPauseCameraMonitor;
+    protected final boolean autoStartStream;
+    protected final boolean showStats;
     protected final Object userStateMtx = new Object();
     protected final Size cameraResolution;
     protected final StreamFormat webcamStreamFormat;
@@ -65,19 +68,23 @@ public class VisionPortalImpl extends VisionPortal
     protected String captureNextFrame;
     protected final Object captureFrameMtx = new Object();
 
-    public VisionPortalImpl(CameraName camera, int cameraMonitorViewId, boolean autoPauseCameraMonitor, Size cameraResolution, StreamFormat webcamStreamFormat, VisionProcessor[] processors)
+    public VisionPortalImpl(CameraName camera, int cameraMonitorViewId, boolean autoPauseCameraMonitor,
+                            Size cameraResolution, StreamFormat webcamStreamFormat, boolean autoStartStream,
+                            boolean showStats, VisionProcessor[] processors)
     {
         this.processors = processors;
+        this.cameraMonitorViewId = cameraMonitorViewId;
         this.cameraResolution = cameraResolution;
         this.webcamStreamFormat = webcamStreamFormat;
+        this.autoPauseCameraMonitor = autoPauseCameraMonitor;
+        this.autoStartStream = autoStartStream;
+        this.showStats = showStats;
         processorsEnabled = new boolean[processors.length];
 
         for (int i = 0; i < processors.length; i++)
         {
             processorsEnabled[i] = true;
         }
-
-        this.autoPauseCameraMonitor = autoPauseCameraMonitor;
 
         createCamera(camera, cameraMonitorViewId);
         startCamera();
@@ -95,6 +102,7 @@ public class VisionPortalImpl extends VisionPortal
             throw new IllegalArgumentException("parameters.cameraResolution == null");
         }
 
+        camera.showFpsMeterOnViewport(showStats);
         camera.setViewportRenderer(OpenCvCamera.ViewportRenderer.NATIVE_VIEW);
 
         if(!(camera instanceof OpenCvWebcam))
@@ -109,12 +117,30 @@ public class VisionPortalImpl extends VisionPortal
             public void onOpened()
             {
                 cameraState = CameraState.CAMERA_DEVICE_READY;
-                cameraState = CameraState.STARTING_STREAM;
-
-                camera.startStreaming(cameraResolution.getWidth(), cameraResolution.getHeight(), CAMERA_ROTATION);
-
                 camera.setPipeline(new ProcessingPipeline());
-                cameraState = CameraState.STREAMING;
+
+                if (autoStartStream)
+                {
+                    cameraState = CameraState.STARTING_STREAM;
+
+                    if (camera instanceof OpenCvWebcam)
+                    {
+                        if (webcamStreamFormat == null)
+                        {
+                            camera.startStreaming(cameraResolution.getWidth(), cameraResolution.getHeight(), CAMERA_ROTATION);
+                        }
+                        else
+                        {
+                            ((OpenCvWebcam)camera).startStreaming(cameraResolution.getWidth(), cameraResolution.getHeight(), CAMERA_ROTATION, webcamStreamFormat.eocvStreamFormat);
+                        }
+                    }
+                    else
+                    {
+                        camera.startStreaming(cameraResolution.getWidth(), cameraResolution.getHeight(), CAMERA_ROTATION);
+                    }
+
+                    cameraState = CameraState.STREAMING;
+                }
             }
 
             @Override
