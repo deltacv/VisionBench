@@ -15,7 +15,6 @@ import com.github.serivesmejia.eocvsim.plugin.output.VisualPluginOutputHandler
 import org.deltacv.eocvsim.plugin.loader.FilePluginLoaderImpl
 import org.deltacv.eocvsim.plugin.loader.PluginManager
 import org.deltacv.eocvsim.plugin.loader.PluginSource
-import org.deltacv.eocvsim.plugin.repository.PluginRepositoryManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import org.koin.core.component.KoinComponent
@@ -199,7 +198,6 @@ class PluginOutput(
                 else "Contact the author at ${loader.pluginInfo.authorEmail}"
 
                 val source = when(loader.pluginSource) {
-                    PluginSource.REPOSITORY -> "from a Maven repository"
                     PluginSource.FILE -> "from a local file"
                     PluginSource.EMBEDDED -> "as an embedded plugin"
                 }
@@ -346,17 +344,14 @@ class PluginOutput(
         startFreshButton.addActionListener {
             val dialogResult = JOptionPane.showConfirmDialog(
                 output,
-                "Are you sure you want to start fresh? This will remove all plugins from all sources.",
+                "Are you sure you want to start fresh? This will remove all plugins from the plugins folder.",
                 "Start fresh",
                 JOptionPane.YES_NO_OPTION
             )
 
             if(dialogResult == JOptionPane.YES_OPTION) {
                 configManager.config.flags["startFreshPlugins"] = true
- 
-                PluginRepositoryManager.REPOSITORY_FILE.delete()
-                PluginRepositoryManager.CACHE_FILE.delete()
- 
+
                 shouldAskForRestart = true
                 checkShouldAskForRestart()
             }

@@ -13,12 +13,10 @@ import com.github.serivesmejia.eocvsim.plugin.api.impl.EOCVSimApiImpl
 import com.github.serivesmejia.eocvsim.plugin.output.PluginDialogSignal
 import com.github.serivesmejia.eocvsim.plugin.output.PluginOutputHandler
 import com.github.serivesmejia.eocvsim.util.InitClasspathScan
-import com.github.serivesmejia.eocvsim.util.event.EventHandler
 import com.github.serivesmejia.eocvsim.util.orchestration.initDependency
 import com.github.serivesmejia.eocvsim.util.orchestration.PhaseOrchestrableBase
 import org.deltacv.common.util.loggerForThis
 import org.deltacv.eocvsim.plugin.EOCVSimPlugin
-import org.deltacv.eocvsim.plugin.repository.PluginRepositoryManager
 import org.deltacv.eocvsim.plugin.security.superaccess.SuperAccessDaemon
 import org.deltacv.eocvsim.plugin.security.superaccess.SuperAccessDaemonClient
 import org.deltacv.eocvsim.plugin.security.toMutable
@@ -42,7 +40,6 @@ class PluginManager : PhaseOrchestrableBase(), KoinComponent {
     private val visualizer: Visualizer by inject()
     private val outputHandler: PluginOutputHandler by inject()
 
-    private val onMainUpdate: EventHandler by inject(named("onMainLoop"))
     private val lifecycleChannel: Channel<LifecycleSignal> by inject(named("lifecycle"))
 
     companion object {
@@ -65,10 +62,6 @@ class PluginManager : PhaseOrchestrableBase(), KoinComponent {
     }
 
     private val loadedPluginHashes = mutableListOf<String>()
-
-    val repositoryManager by lazy {
-        PluginRepositoryManager(outputHandler, onMainUpdate) { lifecycleChannel.trySend(LifecycleSignal.Restart) }
-    }
 
     private val _pluginFiles = mutableListOf<File>()
 
@@ -102,39 +95,9 @@ class PluginManager : PhaseOrchestrableBase(), KoinComponent {
 
         outputHandler.sendOutputLine("Initializing PluginManager")
 
-        // replace papervision line
-
-        if (!configManager.config.flags.getOrDefault("hasDiscardedPaperVisionRepository", false)) {
-            try {
-                val repositoriesStr = PluginRepositoryManager.REPOSITORY_FILE.readText()
-                for (line in repositoriesStr.lines()) {
-                    // retrofit to now instead use embedded papervision
-                    if (line.contains("papervision", ignoreCase = true) && !line.trim().startsWith("#")) {
-                        // add a # to the start of the line to comment it out
-                        PluginRepositoryManager.REPOSITORY_FILE.writeText(
-                            repositoriesStr.replaceFirst(
-                                line,
-                                "\n# PaperVision is now embedded inside EOCV-Sim, there's no need to declare it here\n# $line"
-                            )
-                        )
-
-                        logger.info("Commented out PaperVision repository line in ${PluginRepositoryManager.REPOSITORY_FILE.absolutePath}")
-                        break
-                    }
-                }
-            } catch (_: Exception) {
-            }
-
-            configManager.config.flags["hasDiscardedPaperVisionRepository"] = true
-        }
-
-        repositoryManager.init()
-
         val pluginFilesInFolder = PLUGIN_FOLDER.listFiles()?.let {
             it.filter { file -> file.extension == "jar" }
         } ?: emptyList()
-
-        _pluginFiles.addAll(repositoryManager.resolveAll())
 
         if (configManager.config.flags.getOrDefault("startFreshPlugins", false)) {
             logger.warn("startFreshPlugins = true, deleting all plugins in the plugins folder")
@@ -156,12 +119,10 @@ class PluginManager : PhaseOrchestrableBase(), KoinComponent {
         for (pluginFile in pluginFiles) {
             try {
                 val loader = FilePluginLoaderImpl(
-                    pluginFile,
-                    repositoryManager.resolvedFiles,
-                    if (pluginFile in repositoryManager.resolvedFiles)
-                        PluginSource.REPOSITORY else PluginSource.FILE,
-                    this,
-                    outputHandler
+                    pluginFile = pluginFile,
+                    pluginSource = PluginSource.FILE,
+                    pluginManager = this,
+                    outputHandler = outputHandler
                 )
 
                 _loaders.add(loader)
@@ -176,7 +137,7 @@ class PluginManager : PhaseOrchestrableBase(), KoinComponent {
         isEnabled = true
 
         for(uri in classpathScan.scanResult!!.embeddedPlugins) {
-            val loader = EmbeddedFilePluginLoader(uri.toURL(), listOf(), this, outputHandler)
+            val loader = EmbeddedFilePluginLoader(uri.toURL(), pluginManager = this, outputHandler = outputHandler)
             if(_loaders.map { it.hash() }.none { it == loader.hash() }) {
                 _loaders.add(loader)
                 logger.info("Added $uri from embedded_plugins")
@@ -216,7 +177,6 @@ class PluginManager : PhaseOrchestrableBase(), KoinComponent {
                 if (hash in loadedPluginHashes) {
                     val source = when (loader.pluginSource) {
                         PluginSource.FILE -> "plugins folder"
-                        PluginSource.REPOSITORY -> "repository"
                         PluginSource.EMBEDDED -> "embedded plugin"
                     }
 

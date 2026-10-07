@@ -30,18 +30,27 @@ import java.nio.file.Path
 /**
  * Loads a plugin from a jar file
  * @param pluginFile the jar file of the plugin
- * @param classpath the classpath of the plugin
  * @param pluginSource the source of the plugin (file or repository)
  * @param pluginManager the plugin manager
  * @param outputHandler the output handler for plugin logging
+ * @param overridenClasspath the classpath to use for the plugin, if null the default classpath will be used
  */
 open class FilePluginLoaderImpl(
     override val pluginFile: File,
-    override val classpath: List<File>,
     override val pluginSource: PluginSource,
     val pluginManager: PluginManager,
-    val outputHandler: PluginOutputHandler
+    val outputHandler: PluginOutputHandler,
+    overridenClasspath: List<File>? = null,
 ) : FilePluginLoader() {
+
+    companion object {
+        val defaultClasspath: List<File> =
+            System.getProperty("java.class.path")
+                .split(File.pathSeparator)
+                .map { File(it) }
+                .filter { it.isFile && it.extension == "jar" }
+                .distinctBy { it.absolutePath }
+    }
 
     val logger by loggerForThis()
 
@@ -51,8 +60,12 @@ open class FilePluginLoaderImpl(
     override var enabled = false
         protected set
 
+    override val classpath = overridenClasspath ?: (defaultClasspath + pluginFile)
+
     val pluginClassLoader = PluginClassLoader(
-        pluginFile, classpath, this
+        pluginFile,
+        classpath,
+        this
     )
 
     override var shouldEnable: Boolean
@@ -262,9 +275,9 @@ open class FilePluginLoaderImpl(
 
 class EmbeddedFilePluginLoader(
     resource: URL,
-    classpath: List<File>,
     pluginManager: PluginManager,
-    outputHandler: PluginOutputHandler
+    outputHandler: PluginOutputHandler,
+    overridenClassPath: List<File>? = null,
 ) : FilePluginLoaderImpl(
     pluginFile = resource.let {
         // extract to EMBEDDED_PLUGIN_FOLDER
@@ -279,16 +292,10 @@ class EmbeddedFilePluginLoader(
 
         file
     },
-    classpath = classpath.let {
-        // add pluginFile
-        val hash = it.hashString
-        val file = EMBEDDED_PLUGIN_FOLDER + File.separator + "$hash.jar"
-
-        classpath + file
-    },
     pluginSource = PluginSource.FILE,
     pluginManager = pluginManager,
-    outputHandler = outputHandler
+    outputHandler = outputHandler,
+    overridenClasspath = overridenClassPath
 ) {
     override val hasSuperAccess = true // Embedded plugins always have super access
 

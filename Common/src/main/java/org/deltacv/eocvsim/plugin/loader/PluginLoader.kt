@@ -14,9 +14,6 @@ import org.deltacv.eocvsim.sandbox.nio.SandboxFileSystem
 import java.io.File
 
 enum class PluginSource {
-    /** Plugin loaded from a remote repository */
-    REPOSITORY,
-
     /** Plugin loaded from a local file */
     FILE,
 

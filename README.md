@@ -200,7 +200,7 @@ Join the [deltacv discord server](https://discord.gg/A3RMYzf6DA) !
 
 ## [v4.0.1 - Plugin Auto-Updater](https://github.com/deltacv/EOCV-Sim/releases/tag/v4.0.1)
 - This is the 31th release for EOCV-Sim
-    - Adds a plugin auto-updater, which will automatically check for updates on the plugins you have pulled using repository.toml
+    - Keeps plugin loading limited to locally installed plugin JARs; no remote repository plugin downloads are supported
     - Adds a dialog prompt when another EOCV-Sim instance is detected, instead of silently failing
     - Updates to [PaperVision v1.0.4](https://github.com/deltacv/PaperVision/releases/tag/v1.0.4)
 ## [v4.0.0 - PaperVision is here !](https://github.com/deltacv/EOCV-Sim/releases/tag/v4.0.0)
@@ -240,7 +240,7 @@ Join the [deltacv discord server](https://discord.gg/A3RMYzf6DA) !
     - Changelog
         - Updates AprilTagDesktop to 2.1.0-C, enabling support for Linux AARCH64.
         - Implements a system that allows for plugins to be downloaded from a maven repository and loaded into the simulator.
-        - New repository.toml file that contains the list of repositories to download plugins from and the maven coordinates to download.
+        - Plugin installation remains local-only; JARs are loaded from the plugins folder rather than remote repositories.
         - Adds a new dialog to manage the loaded plugins and check the output of the plugin system.
         - Rewrites SuperAccess verification to be handled by a separate JVM process, ensuring that the main process is not compromised by malicious code.
         - Implements a plugin signature verification system to allow for authors to sign their plugins and ensure that they are not tampered with.

@@ -10,7 +10,6 @@ The main implementation is spread across a few packages:
 - `../VisionBench/src/main/java/org/deltacv/eocvsim/plugin/loader/FilePluginLoaderImpl.kt`
 - `../VisionBench/src/main/java/org/deltacv/eocvsim/plugin/loader/EmbeddedPluginLoader.kt`
 - `../VisionBench/src/main/java/org/deltacv/eocvsim/plugin/loader/PluginClassLoader.kt`
-- `../VisionBench/src/main/java/org/deltacv/eocvsim/plugin/repository/PluginRepositoryManager.kt`
 - `../VisionBench/src/main/java/org/deltacv/eocvsim/plugin/security/superaccess/SuperAccessDaemon.kt`
 - `../VisionBench/src/main/java/org/deltacv/eocvsim/plugin/security/superaccess/SuperAccessDaemonClient.kt`
 - `../VisionBench/src/main/java/com/github/serivesmejia/eocvsim/plugin/api/impl/`
@@ -19,7 +18,6 @@ This subsystem is responsible for:
 
 - finding plugin files,
 - loading plugin metadata,
-- resolving repo-managed plugins,
 - enabling/disabling plugins,
 - exposing a controlled API to plugins,
 - and enforcing privilege approval for anything sensitive.
@@ -39,19 +37,18 @@ The project does not expose raw internals freely. Instead, plugins interact via 
 In `init()`, it does a sequence of setup tasks:
 
 1. attaches a plugin output handler to the app’s UI lifecycle,
-2. initializes repository support,
-3. scans the plugin folder and any resolved repo plugin files,
-4. creates file-based loaders for each plugin JAR,
-5. loads the plugin metadata from each plugin definition,
-6. checks duplicates and embedded plugins,
-7. calls `loadPlugins()` to bring the plugins into the runtime,
-8. enables them after the rest of the app is ready.
+2. scans the plugin folder for JAR files,
+3. creates file-based loaders for each plugin JAR,
+4. loads the plugin metadata from each plugin definition,
+5. checks duplicates and embedded plugins,
+6. calls `loadPlugins()` to bring the plugins into the runtime,
+7. enables them after the rest of the app is ready.
 
 The manager also tracks:
 
-- plugin files found in the repo or plugin folder,
+- plugin files found in the plugin folder,
 - plugin loaders that have been created,
-- plugin source type (`FILE`, `REPOSITORY`, `EMBEDDED`),
+- plugin source type (`FILE`, `EMBEDDED`),
 - loaded plugin hashes to detect duplicates,
 - and output messages shown to the user while the plugin system is active.
 
@@ -62,10 +59,9 @@ This makes the plugin system more than a thin jar loader. It is a runtime manage
 The app distinguishes among plugin sources:
 
 - `FILE` plugins — JARs located in the plugin folder
-- `REPOSITORY` plugins — resolved from repository metadata
 - `EMBEDDED` plugins — plugins that ship with the app itself
 
-This classification matters for both user experience and security. A repository-managed plugin may be checked for updates; a file plugin may be user-managed; an embedded plugin is trusted as part of the app distribution.
+This classification matters for both user experience and security. A file plugin may be user-managed, while an embedded plugin is trusted as part of the app distribution.
 
 ### `FilePluginLoaderImpl`
 
@@ -81,28 +77,11 @@ A plugin class loader is necessary because plugins are external code and should 
 
 This is one of the most important engineering decisions in the subsystem: plugin code is treated as a separate runtime unit.
 
-## Repository resolution and dependency management
+## Local plugin loading
 
-The repository layer is handled by `PluginRepositoryManager`. This class reads a repository TOML file, configures a Maven resolver, and resolves plugin artifacts from remote repositories.
+VisionBench loads plugins directly from the local plugin folder and from bundled embedded plugins. There is no remote repository resolution layer and no dynamic download path in the app runtime.
 
-The key responsibilities include:
-
-- reading repository configuration from `repository.toml`,
-- registering remote repositories with the Maven resolver,
-- resolving plugin artifacts and transitive dependencies,
-- caching plugin results locally,
-- checking whether a plugin is outdated,
-- prompting the user to update and restart when a newer plugin version exists.
-
-This repository mechanism is more sophisticated than simply copying JARs into a folder. It tries to manage plugin versions and dependency resolution in a more controlled manner.
-
-### Cache behavior
-
-`PluginRepositoryManager` stores dependency information in a cache file and checks whether transitive dependencies are still valid. This reduces repeated downloads and ensures that plugins are not accidentally loaded with stale or partially missing dependency sets.
-
-### Update prompts
-
-The manager can show a Swing dialog to prompt the user to update a plugin. It will surface the latest resolved version and ask whether the user wants to update and restart the app. This is important because plugin update behavior is a runtime-affecting decision and not something the app should silently do behind the user’s back.
+The app only accepts plugin JARs that are present on disk or shipped with the application. This keeps plugin installation explicit and avoids untrusted third-party downloads at runtime.
 
 ## Plugin API surface
 
@@ -175,8 +154,7 @@ The plugin subsystem does not sit in isolation. It integrates with the rest of t
 - it can use the visualizer API,
 - it can interact with config values,
 - it can react to pipeline and source events,
-- it can show dialogs and user notifications,
-- it can reconnect after restart when a repo-managed plugin updates.
+- it can show dialogs and user notifications.
 
 This means the plugin layer is not a separable side feature. It is woven into the app’s runtime model and tooling experience.
 

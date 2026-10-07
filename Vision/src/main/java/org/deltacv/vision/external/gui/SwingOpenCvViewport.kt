@@ -336,7 +336,7 @@ class SwingOpenCvViewport(
                         val frame = visionPreviewFrameQueue.poll(10, TimeUnit.MILLISECONDS) ?: lastFrame
 
                         frame
-                    } catch (e: InterruptedException) {
+                    } catch (_: InterruptedException) {
 
                         //Note: we actually don't re-interrupt ourselves here, because interrupts are also
                         //used to simply make sure we properly pick up a transition to the PAUSED state, not

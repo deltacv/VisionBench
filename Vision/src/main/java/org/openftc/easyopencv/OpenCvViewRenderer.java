@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 OpenFTC Team & 2026 Sebastian Erives
+ * Copyright (c) 2023 OpenFTC Team
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
